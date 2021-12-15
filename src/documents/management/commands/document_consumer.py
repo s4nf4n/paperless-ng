@@ -27,7 +27,7 @@ def _tags_from_path(filepath):
     """
     tag_ids = set()
     path_parts = Path(filepath).relative_to(
-                settings.CONSUMPTION_DIR).parent.parts
+        settings.CONSUMPTION_DIR).parent.parts
     for part in path_parts:
         tag_ids.add(Tag.objects.get_or_create(name__iexact=part, defaults={
             "name": part
@@ -99,6 +99,31 @@ def _consume_wait_unmodified(file):
         current_try += 1
 
     logger.error(f"Timeout while waiting on file {file} to remain unmodified.")
+
+
+def _consume_unmodified_after_wait(file):
+    modified_delay = settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY
+    if modified_delay <= 0:
+        _consume(file)
+    else:
+        if _is_ignored(file):
+            return
+
+        logger.debug(
+            f"Waiting {modified_delay}s for file {file} to remain unmodified")
+        try:
+            modified_time = os.stat(file).st_mtime
+            sleep(modified_delay)
+            # only if not modified, next event will come
+            if modified_time == os.stat(file).st_mtime:
+                _consume(file)
+            else:
+                logger.info(
+                    f"File {file} has been modified. Cancelling consumption.")
+
+        except FileNotFoundError:
+            logger.debug(f"File {file} moved while waiting for it to remain "
+                         f"unmodified.")
 
 
 class Handler(FileSystemEventHandler):
@@ -204,7 +229,7 @@ class Command(BaseCommand):
                     else:
                         path = directory
                     filepath = os.path.join(path, event.name)
-                    _consume(filepath)
+                    _consume_unmodified_after_wait(filepath)
         except KeyboardInterrupt:
             pass
 

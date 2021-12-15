@@ -250,6 +250,11 @@ class TestConsumerRecursive(TestConsumer):
     # just do all the tests with recursive
     pass
 
+@override_settings(CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY=1)
+class TestConsumerModifyDelay(TestConsumer):
+    # just do all the tests with recursive
+    pass
+
 
 @override_settings(CONSUMER_RECURSIVE=True, CONSUMER_POLLING=1, CONSUMER_POLLING_DELAY=1, CONSUMER_POLLING_RETRY_COUNT=20)
 class TestConsumerRecursivePolling(TestConsumer):
