@@ -105,7 +105,7 @@
 - block:
     - name: get latest release version
       uri:
-        url: https://api.github.com/repos/jonaswinkler/paperless-ng/releases/latest
+        url: https://api.github.com/repos/s4nf4n/paperless-ng/releases/latest
         method: GET
       register: latest_release
     - name: parse latest release version
@@ -125,7 +125,7 @@
         paperlessng_version: "{{ paperlessng_version | regex_replace('^ng-(\\d+\\.\\d+\\.\\d+)$', '\\1') }}"
     - name: get tag data
       uri:
-        url: https://api.github.com/repos/jonaswinkler/paperless-ng/tags
+        url: https://api.github.com/repos/s4nf4n/paperless-ng/tags
         method: GET
       register: tags
     - name: get commit for target tag
@@ -136,7 +136,7 @@
 - block:
     - name: check if version is branch
       uri:
-        url: "https://api.github.com/repos/jonaswinkler/paperless-ng/branches/{{ paperlessng_version }}"
+        url: "https://api.github.com/repos/s4nf4n/paperless-ng/branches/{{ paperlessng_version }}"
         method: GET
         status_code: [200, 404]
       register: branch
@@ -147,7 +147,7 @@
     - block:
         - name: check if version is commit-or-ref
           uri:
-            url: "https://api.github.com/repos/jonaswinkler/paperless-ng/commits/{{ paperlessng_version }}"
+            url: "https://api.github.com/repos/s4nf4n/paperless-ng/commits/{{ paperlessng_version }}"
             method: GET
             status_code: [200, 404, 422]
           register: commit
@@ -211,7 +211,7 @@
       register: tempdir
     - name: check if version is available as release archive
       uri:
-        url: "https://github.com/jonaswinkler/paperless-ng/releases/download/ng-{{ paperlessng_version }}/paperless-ng-{{ paperlessng_version }}.tar.xz"
+        url: "https://github.com/s4nf4n/paperless-ng/releases/download/ng-{{ paperlessng_version }}/paperless-ng-{{ paperlessng_version }}.tar.xz"
         method: GET
         status_code: [200, 404]
       register: release_archive
