@@ -27,7 +27,7 @@ Additional variables available in this role are listed below, along with default
 
     paperlessng_version: latest
 
-The [release](https://github.com/jonaswinkler/paperless-ng/releases) archive version of paperless-ng to install.
+The [release](https://github.com/s4nf4n/paperless-ng/releases) archive version of paperless-ng to install.
 `latest` stands for the latest release of paperless-ng.
 To install a specific version of paperless-ng, use the tag name of the release, e. g. `ng-1.4.4`, or specify a branch or commit id.
 
