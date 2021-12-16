@@ -229,6 +229,9 @@ class Command(BaseCommand):
                     else:
                         path = directory
                     filepath = os.path.join(path, event.name)
+                    logger.debug(
+                        f"Received event for file {filepath} "
+                        f"with flag {event.flags}")
                     _consume_unmodified_after_wait(filepath)
         except KeyboardInterrupt:
             pass
