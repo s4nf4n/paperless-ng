@@ -126,28 +126,6 @@ def _consume_unmodified_after_wait(file):
                          f"unmodified.")
 
 
-def _log_inotify(self, directory):
-
-    inotify = INotify()
-    inotify_flags = flags.CLOSE_WRITE | flags.MOVED_TO
-    descriptor = inotify.add_watch(directory, inotify_flags)
-
-    try:
-        while not self.stop_flag:
-            for event in inotify.read(timeout=1000):
-                for flag in flags.from_mask(event.mask):
-                    flag_str = str(flag)
-                    logger.debug(
-                        f"Received event for file {event.name} "
-                        f"with flag {flag_str}")
-    except KeyboardInterrupt:
-        pass
-
-    inotify.rm_watch(descriptor)
-    inotify.close()
-
-
-
 class Handler(FileSystemEventHandler):
 
     def on_created(self, event):
@@ -255,10 +233,12 @@ class Command(BaseCommand):
                     else:
                         path = directory
                     filepath = os.path.join(path, event.name)
-                    logger.debug(
-                        f"Received event for file {filepath} "
-                        f"with flag {event.mask}")
-                    _consume_unmodified_after_wait(filepath)
+                    for flag in flags.from_mask(event.mask):
+                        flag_str = str(flag)
+                        logger.debug(
+                            f"Received event for file {event.name} "
+                            f"with flag {flag_str}")
+                    # _consume_unmodified_after_wait(filepath)
         except KeyboardInterrupt:
             pass
 
