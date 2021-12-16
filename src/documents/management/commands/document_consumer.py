@@ -231,7 +231,7 @@ class Command(BaseCommand):
                     filepath = os.path.join(path, event.name)
                     logger.debug(
                         f"Received event for file {filepath} "
-                        f"with flag {event.flags}")
+                        f"with flag {event.mask}")
                     _consume_unmodified_after_wait(filepath)
         except KeyboardInterrupt:
             pass
