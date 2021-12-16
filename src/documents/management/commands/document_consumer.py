@@ -214,10 +214,6 @@ class Command(BaseCommand):
         logger.info(
             f"Using inotify to watch directory for changes: {directory}")
 
-        Thread(
-            target=_log_inotify, args=(self, directory)
-        ).start()
-
         inotify = INotify()
         inotify_flags = flags.CLOSE_WRITE | flags.MOVED_TO
         if recursive:
