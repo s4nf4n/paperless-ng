@@ -14,7 +14,7 @@ from documents.models import Tag
 from documents.parsers import is_file_ext_supported
 
 try:
-    from inotifyrecursive import INotify, flags
+    from inotifyrecursive import INotify, flags, masks
 except ImportError:
     INotify = flags = None
 
@@ -215,7 +215,8 @@ class Command(BaseCommand):
             f"Using inotify to watch directory for changes: {directory}")
 
         inotify = INotify()
-        inotify_flags = flags.CLOSE_WRITE | flags.MOVED_TO
+        inotify_flags = masks.ALL_EVENTS
+
         if recursive:
             descriptor = inotify.add_watch_recursive(directory, inotify_flags)
         else:
