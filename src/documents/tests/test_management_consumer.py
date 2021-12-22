@@ -75,10 +75,10 @@ class ConsumerMixin:
     def bogus_task(self, func, filename, **kwargs):
         eq = filecmp.cmp(filename, self.sample_file, shallow=False)
         if not eq:
-            print("Consumed an INVALID file.")
+            print("Consumed an INVALID file.", filename)
             raise ConsumerError("Incomplete File READ FAILED")
         else:
-            print("Consumed a perfectly valid file.")
+            print("Consumed a perfectly valid file.", filename)
 
     def slow_write_file(self, target, incomplete=False):
         with open(self.sample_file, 'rb') as f:
@@ -94,6 +94,23 @@ class ConsumerMixin:
                 f.write(b)
                 sleep(0.1)
             print("file completed.")
+
+    def chunk_write_file(self, target, incomplete=False):
+        with open(self.sample_file, 'rb') as f:
+            pdf_bytes = f.read()
+
+        if incomplete:
+            pdf_bytes = pdf_bytes[:len(pdf_bytes) - 100]
+
+        for filePart in chunked(10000, pdf_bytes):
+            with open(target, 'ab') as f:
+                # this will take 2 seconds, since the file is about 20k.
+                print("Start writing file.", target)
+                for b in chunked(1000, filePart):
+                    f.write(b)
+                    sleep(0.1)
+                print("file completed.", target)
+            sleep(1)
 
 
 class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
@@ -130,6 +147,51 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
 
         args, kwargs = self.task_mock.call_args
         self.assertEqual(args[1], f)
+
+    @mock.patch("documents.management.commands.document_consumer.logger.error")
+    def test_chunk_write_pdf(self, error_logger):
+
+        self.task_mock.side_effect = self.bogus_task
+
+        self.t_start()
+
+        fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
+
+        self.chunk_write_file(fname)
+
+        self.wait_for_task_mock_call()
+
+
+        self.task_mock.assert_called_once()
+
+        args, kwargs = self.task_mock.call_args
+        self.assertEqual(args[1], fname)
+
+        error_logger.assert_not_called()
+
+    @mock.patch("documents.management.commands.document_consumer.logger.error")
+    def test_chunk_write_3pdf(self, error_logger):
+
+        self.task_mock.side_effect = self.bogus_task
+
+        self.t_start()
+
+        fname1 = os.path.join(self.dirs.consumption_dir, "my_file1.pdf")
+        fname2 = os.path.join(self.dirs.consumption_dir, "my_file2.pdf")
+        fname3 = os.path.join(self.dirs.consumption_dir, "my_file3.pdf")
+
+        self.chunk_write_file(fname1)
+        self.chunk_write_file(fname2)
+        self.chunk_write_file(fname3)
+
+        self.wait_for_task_mock_call(3)
+
+        self.assertEqual( self.task_mock.call_count, 3)
+
+        args, kwargs = self.task_mock.call_args
+        self.assertEqual(args[1], fname3)
+
+        error_logger.assert_not_called()
 
     @mock.patch("documents.management.commands.document_consumer.logger.error")
     def test_slow_write_pdf(self, error_logger):
@@ -239,7 +301,7 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
                 f'_is_ignored("{file_path}") != {expected_ignored}')
 
 
-@override_settings(CONSUMER_POLLING=1, CONSUMER_POLLING_DELAY=1, CONSUMER_POLLING_RETRY_COUNT=20)
+@override_settings(CONSUMER_POLLING=1, CONSUMER_POLLING_DELAY=2, CONSUMER_POLLING_RETRY_COUNT=20)
 class TestConsumerPolling(TestConsumer):
     # just do all the tests with polling
     pass
@@ -251,7 +313,7 @@ class TestConsumerRecursive(TestConsumer):
     pass
 
 
-@override_settings(CONSUMER_RECURSIVE=True, CONSUMER_POLLING=1, CONSUMER_POLLING_DELAY=1, CONSUMER_POLLING_RETRY_COUNT=20)
+@override_settings(CONSUMER_RECURSIVE=True, CONSUMER_POLLING=1, CONSUMER_POLLING_DELAY=2, CONSUMER_POLLING_RETRY_COUNT=20)
 class TestConsumerRecursivePolling(TestConsumer):
     # just do all the tests with polling and recursive
     pass
