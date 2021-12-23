@@ -101,6 +101,30 @@ def _consume_wait_unmodified(file):
     logger.error(f"Timeout while waiting on file {file} to remain unmodified.")
 
 
+def _consume_unmodified_after_wait(file):
+    # solution just works with rather huge waits, because st_mtime is just the modified time of last CLOSE_WRITE
+    modified_delay = max(settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY, 2)
+    print("modified_delay = ", modified_delay)
+    if _is_ignored(file):
+        return
+
+    logger.debug(
+        f"Waiting {modified_delay}s for file {file} to remain unmodified")
+    try:
+        modified_time = os.stat(file).st_mtime
+        sleep(modified_delay)
+        # only if not modified, next event will come
+        if modified_time == os.stat(file).st_mtime:
+            _consume(file)
+        else:
+            logger.info(
+                f"File {file} has been modified. Cancelling consumption.")
+
+    except FileNotFoundError:
+        logger.debug(f"File {file} moved while waiting for it to remain "
+                     f"unmodified.")
+
+
 class Handler(FileSystemEventHandler):
 
     def on_created(self, event):
@@ -204,7 +228,7 @@ class Command(BaseCommand):
                     else:
                         path = directory
                     filepath = os.path.join(path, event.name)
-                    _consume(filepath)
+                    _consume_unmodified_after_wait(filepath)
         except KeyboardInterrupt:
             pass
 
