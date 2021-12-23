@@ -1,6 +1,7 @@
 import filecmp
 import os
 import shutil
+from datetime import datetime
 from threading import Thread
 from time import sleep
 from unittest import mock
@@ -95,7 +96,7 @@ class ConsumerMixin:
                 sleep(0.1)
             print("file completed.")
 
-    def chunk_write_file(self, target, incomplete=False):
+    def chunk_write_file(self, target, incomplete=False, wait_between_open=0.1):
         with open(self.sample_file, 'rb') as f:
             pdf_bytes = f.read()
 
@@ -105,12 +106,13 @@ class ConsumerMixin:
         for filePart in chunked(10000, pdf_bytes):
             with open(target, 'ab') as f:
                 # this will take 2 seconds, since the file is about 20k.
-                print("Start writing file.", target)
+                print(f"{datetime.now().time()}: Start writing file.", target)
                 for b in chunked(1000, filePart):
                     f.write(b)
                     sleep(0.1)
-                print("file completed.", target)
-            sleep(1)
+                print(f"{datetime.now().time()}: file closed.", target)
+            sleep(wait_between_open)
+            print(f"{datetime.now().time()}: file completed.", target)
 
 
 class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
@@ -127,6 +129,21 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
 
         args, kwargs = self.task_mock.call_args
         self.assertEqual(args[1], f)
+
+    def test_consume_3_files(self):
+        self.t_start()
+
+        shutil.copy(self.sample_file, os.path.join(self.dirs.consumption_dir, "my_file1.pdf"))
+        shutil.copy(self.sample_file, os.path.join(self.dirs.consumption_dir, "my_file2.pdf"))
+        shutil.copy(self.sample_file, os.path.join(self.dirs.consumption_dir, "my_file3.pdf"))
+
+        self.wait_for_task_mock_call(3)
+
+        self.assertEqual(self.task_mock.call_count, 3)
+
+        # TODO check all 3 task args
+        # args, kwargs = self.task_mock.call_args
+        # self.assertEqual(args[1], f)
 
     def test_consume_file_invalid_ext(self):
         self.t_start()
@@ -157,7 +174,7 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
 
         fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
 
-        self.chunk_write_file(fname)
+        self.chunk_write_file(fname, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
 
         self.wait_for_task_mock_call()
 
@@ -170,7 +187,49 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
         error_logger.assert_not_called()
 
     @mock.patch("documents.management.commands.document_consumer.logger.error")
-    def test_chunk_write_3pdf(self, error_logger):
+    def test_chunk_write_pdf_delay_write(self, error_logger):
+
+        self.task_mock.side_effect = self.bogus_task
+
+        self.t_start()
+
+        fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
+
+        self.chunk_write_file(fname, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
+
+        self.wait_for_task_mock_call()
+
+
+        self.task_mock.assert_called_once()
+
+        args, kwargs = self.task_mock.call_args
+        self.assertEqual(args[1], fname)
+
+        error_logger.assert_not_called()
+
+    @mock.patch("documents.management.commands.document_consumer.logger.error")
+    def test_chunk_write_pdf_delay_write(self, error_logger):
+
+        self.task_mock.side_effect = self.bogus_task
+
+        self.t_start()
+
+        fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
+
+        self.chunk_write_file(fname, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
+
+        self.wait_for_task_mock_call()
+
+
+        self.task_mock.assert_called_once()
+
+        args, kwargs = self.task_mock.call_args
+        self.assertEqual(args[1], fname)
+
+        error_logger.assert_not_called()
+
+    @mock.patch("documents.management.commands.document_consumer.logger.error")
+    def test_chunk_write_3_pdf(self, error_logger):
 
         self.task_mock.side_effect = self.bogus_task
 
@@ -180,14 +239,15 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
         fname2 = os.path.join(self.dirs.consumption_dir, "my_file2.pdf")
         fname3 = os.path.join(self.dirs.consumption_dir, "my_file3.pdf")
 
-        self.chunk_write_file(fname1)
-        self.chunk_write_file(fname2)
-        self.chunk_write_file(fname3)
+        self.chunk_write_file(fname1, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
+        self.chunk_write_file(fname2, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
+        self.chunk_write_file(fname3, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
 
         self.wait_for_task_mock_call(3)
 
         self.assertEqual( self.task_mock.call_count, 3)
 
+        # TODO check all 3 tasks args
         args, kwargs = self.task_mock.call_args
         self.assertEqual(args[1], fname3)
 
@@ -304,6 +364,34 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
 @override_settings(CONSUMER_POLLING=1, CONSUMER_POLLING_DELAY=2, CONSUMER_POLLING_RETRY_COUNT=20)
 class TestConsumerPolling(TestConsumer):
     # just do all the tests with polling
+    pass
+
+@override_settings(CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY=2)
+class TestConsumerInotifyWait(TestConsumer):
+
+    @mock.patch("documents.management.commands.document_consumer.logger.error")
+    def test_chunk_write_pdf_delay_write_3s(self, error_logger):
+        """Write delay is higher than wait time, errors should be raised when trying to consume"""
+        self.task_mock.side_effect = self.bogus_task
+
+        self.t_start()
+
+        fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
+
+        self.chunk_write_file(fname, False, 3)
+
+        self.wait_for_task_mock_call(3)
+
+        self.assertEqual(self.task_mock.call_count, 3)
+
+        # tried 3 times to consume, but ran into error first two times. Last one is valid one.
+        # TestConsumer throws errors, but production one might not -> undefinable documents appear in paperless,
+        #   though they can be valid documents, just not complete.
+        # TODO try to find a way in the consumer/parser itself to cancel saving document to db and deleting the file if there appears
+        #      to be a further modified version.
+        self.assertEqual(error_logger.call_count, 2)
+
+    # just do all the tests with waiting longer for file to be unmodified
     pass
 
 
