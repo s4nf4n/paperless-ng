@@ -102,7 +102,8 @@ def _consume_wait_unmodified(file):
 
 
 def _consume_unmodified_after_wait(file):
-    # solution just works with rather huge waits, because st_mtime is just the modified time of last CLOSE_WRITE
+    # solution just works with rather huge waits,
+    # because st_mtime is just the modified time of last CLOSE_WRITE
     modified_delay = max(settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY, 2)
     print("modified_delay = ", modified_delay)
     if _is_ignored(file):
