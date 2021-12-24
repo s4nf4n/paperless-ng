@@ -103,7 +103,7 @@ def _consume_wait_unmodified(file):
 
 
 def _consume_inotify_wait_unmodified(directory, file):
-    modified_delay = max(settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY, 0.01)
+    modified_delay = max(settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY, 0.1)
 
     if _is_ignored(file):
         return

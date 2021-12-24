@@ -174,49 +174,7 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
 
         fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
 
-        self.chunk_write_file(fname, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
-
-        self.wait_for_task_mock_call()
-
-
-        self.task_mock.assert_called_once()
-
-        args, kwargs = self.task_mock.call_args
-        self.assertEqual(args[1], fname)
-
-        error_logger.assert_not_called()
-
-    @mock.patch("documents.management.commands.document_consumer.logger.error")
-    def test_chunk_write_pdf_delay_write(self, error_logger):
-
-        self.task_mock.side_effect = self.bogus_task
-
-        self.t_start()
-
-        fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
-
-        self.chunk_write_file(fname, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
-
-        self.wait_for_task_mock_call()
-
-
-        self.task_mock.assert_called_once()
-
-        args, kwargs = self.task_mock.call_args
-        self.assertEqual(args[1], fname)
-
-        error_logger.assert_not_called()
-
-    @mock.patch("documents.management.commands.document_consumer.logger.error")
-    def test_chunk_write_pdf_delay_write(self, error_logger):
-
-        self.task_mock.side_effect = self.bogus_task
-
-        self.t_start()
-
-        fname = os.path.join(self.dirs.consumption_dir, "my_file.pdf")
-
-        self.chunk_write_file(fname, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
+        self.chunk_write_file(fname)
 
         self.wait_for_task_mock_call()
 
@@ -239,9 +197,9 @@ class TestConsumer(DirectoriesMixin, ConsumerMixin, TransactionTestCase):
         fname2 = os.path.join(self.dirs.consumption_dir, "my_file2.pdf")
         fname3 = os.path.join(self.dirs.consumption_dir, "my_file3.pdf")
 
-        self.chunk_write_file(fname1, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
-        self.chunk_write_file(fname2, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
-        self.chunk_write_file(fname3, False, settings.CONSUMER_INOTIFY_WAIT_MODIFIED_DELAY)
+        self.chunk_write_file(fname1)
+        self.chunk_write_file(fname2)
+        self.chunk_write_file(fname3)
 
         self.wait_for_task_mock_call(3)
 
